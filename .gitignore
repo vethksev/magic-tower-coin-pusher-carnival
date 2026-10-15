@@ -1,0 +1,21 @@
+# Godot editor cache (regenerated on import)
+.godot/
+
+# Exported Windows builds and packages - share these via release ZIPs, not git
+windows/
+windows-v*/
+*.zip
+*.exe
+*.pck
+
+# Python cache from tools/
+__pycache__/
+*.pyc
+
+# OS / editor noise
+Thumbs.db
+.DS_Store
+*.tmp
+
+# QA screenshots / local tuning
+.godot/qa/
