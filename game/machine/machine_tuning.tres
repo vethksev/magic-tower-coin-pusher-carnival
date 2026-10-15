@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="MachineTuning" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/machine/machine_tuning.gd" id="1_tuning"]
+
+[resource]
+script = ExtResource("1_tuning")
+pusher_period = 2.4
+pusher_stroke = 36.0
+pusher_thickness = 24.0
+pusher_rest_y = 40.0
+linear_damp = 3.0
+friction = 0.6
+bounce = 0.1
+coin_radius = 7.0
+fire_speed = 180.0
+fire_forward_speed = 40.0
+fire_jitter_deg = 6.0
+fire_cooldown = 0.25
+fire_flight_time = 0.3
+clip_size = 20
+settle_speed = 4.0
+settle_seconds = 2.0
+bed_start_y = 90.0
+bed_end_y = 270.0
+bed_spacing = 17.0
+bed_x_start = 30.0
+bed_x_end = 370.0
+bed_jitter = 1.0
