@@ -1,0 +1,44 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+
+config/name="魔塔推幣機 · Phase 0 手感 demo"
+config/version="0.1.0"
+run/main_scene="res://main.tscn"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="MagicTowerCoinPusher"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+
+[display]
+
+window/size/viewport_width=640
+window/size/viewport_height=360
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/size/resizable=true
+window/stretch/mode="viewport"
+window/stretch/aspect="keep"
+window/stretch/scale_mode="integer"
+
+[physics]
+
+2d/default_gravity=0.0
+2d/default_linear_damp=0.0
+2d/default_angular_damp=0.0
+common/physics_ticks_per_second=60
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=0
+environment/defaults/default_clear_color=Color(0.07, 0.06, 0.09, 1)
+
+[audio]
+
+driver/enable_input=false
+
+[internationalization]
+
+locale/fallback="zh_TW"
