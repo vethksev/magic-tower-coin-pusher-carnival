@@ -32,6 +32,9 @@ func run() -> void:
 	tuning.friction = argf("friction", tuning.friction)
 	tuning.coin_thickness = argf("thickness", tuning.coin_thickness)
 	tuning.fire_speed = argf("fire-speed", tuning.fire_speed)
+	tuning.fire_angle_deg = argf("fire-angle", tuning.fire_angle_deg)
+	tuning.bounce = argf("bounce", tuning.bounce)
+	var mode: String = String(_args.get("mode", "sides"))
 	var ticks_total: int = argi("ticks", 1500)
 	var seed_value: int = argi("seed", 7)
 	var fire_count: int = argi("fire", 20)
@@ -49,7 +52,11 @@ func run() -> void:
 	if fire_count > tuning.clip_size:
 		machine.refill(fire_count - tuning.clip_size)
 	for i in range(fire_count):
-		machine.fire(i % 2)
+		if mode == "top":
+			machine.set_aim_x(-6.0 + 12.0 * float(i % 5) / 4.0)
+			machine.fire(MachineLayout.Chute.TOP)
+		else:
+			machine.fire(i % 2)
 		for _t in range(16):
 			await physics_frame
 			ticks += 1

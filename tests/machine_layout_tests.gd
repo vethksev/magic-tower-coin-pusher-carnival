@@ -37,6 +37,7 @@ func test_classify() -> void:
 	check(MachineLayout.classify(Vector3(-9.6, -1.5, 4.0)) == MachineLayout.Zone.LOST_LEFT, "fell into left gutter is lost left")
 	check(MachineLayout.classify(Vector3(9.6, -1.5, 4.0)) == MachineLayout.Zone.LOST_RIGHT, "fell into right gutter is lost right")
 	check(MachineLayout.classify(Vector3(0, -1.5, 4.9)) == MachineLayout.Zone.LOST_RIGHT, "fell before SCORE_MIN_Z counts as lost")
+	check(MachineLayout.classify(Vector3(-2, 13.0, 0)) == MachineLayout.Zone.LOST_LEFT, "flew above FLY_AWAY_Y counts as lost")
 
 
 func test_cycle_index() -> void:
@@ -52,7 +53,9 @@ func test_tuning_defaults() -> void:
 	check(is_equal_approx(t.pusher_period, 2.4), "default period 2.4")
 	check(is_equal_approx(t.pusher_stroke, 6.0), "default stroke 6")
 	check(is_equal_approx(t.friction, 0.2), "default friction 0.2")
-	check(is_equal_approx(t.fire_speed, 14.0), "default fire speed 14")
+	check(is_equal_approx(t.bounce, 0.25), "default bounce 0.25")
+	check(is_equal_approx(t.fire_speed, 22.0), "default fire speed 22")
+	check(is_equal_approx(t.fire_angle_deg, 20.0), "default fire angle 20")
 	check(is_equal_approx(t.fire_cooldown, 0.25), "default cooldown 0.25")
 	check(t.clip_size == 20, "default clip 20")
 	check(is_equal_approx(t.coin_radius, 0.5), "coin radius 0.5")

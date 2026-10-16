@@ -11,7 +11,7 @@ func _initialize() -> void:
 func run() -> void:
 	var tuning: MachineTuning = load("res://game/machine/machine_tuning.tres")
 	await test_coin_setup(tuning)
-	await test_coin_slide(tuning)
+	await test_coin_launch(tuning)
 	await test_coin_falls(tuning)
 	await test_pusher(tuning)
 	print("CoinPusher: %d checks, %d failures" % [checks, failures])
@@ -34,6 +34,7 @@ func test_coin_setup(tuning: MachineTuning) -> void:
 	check(is_equal_approx(coin.radius, tuning.coin_radius), "coin radius from tuning")
 	check(is_equal_approx(coin.mass, tuning.coin_mass), "coin mass from tuning")
 	check(coin.physics_material_override != null and is_equal_approx(coin.physics_material_override.friction, tuning.friction), "friction from tuning")
+	check(is_equal_approx(coin.physics_material_override.bounce, tuning.bounce), "bounce from tuning")
 	var shape: CollisionShape3D = coin.get_node("Shape")
 	check(shape != null and shape.shape is CylinderShape3D, "cylinder collider")
 	check(is_equal_approx((shape.shape as CylinderShape3D).radius, tuning.coin_radius) and is_equal_approx((shape.shape as CylinderShape3D).height, tuning.coin_thickness), "cylinder matches radius and thickness")
@@ -43,33 +44,34 @@ func test_coin_setup(tuning: MachineTuning) -> void:
 	await physics_frame
 	check(not coin.is_airborne and coin.collision_layer == 1 and coin.collision_mask == 1, "placed coin is solid")
 	coin.apply_friction(0.9)
-	check(is_equal_approx(coin.physics_material_override.friction, 0.9), "apply_friction updates material")
+	coin.apply_bounce(0.5)
+	check(is_equal_approx(coin.physics_material_override.friction, 0.9) and is_equal_approx(coin.physics_material_override.bounce, 0.5), "apply_friction/apply_bounce update material")
 	coin.queue_free()
 	await physics_frame
 
 
-func test_coin_slide(tuning: MachineTuning) -> void:
+func test_coin_launch(tuning: MachineTuning) -> void:
 	var coin: Coin = Coin.new()
 	coin.setup(tuning, 1, 1, Color.WHITE)
 	root.add_child(coin)
-	var landed_box: Dictionary = {"count": 0, "pos": Vector3.ZERO}
-	coin.landed.connect(func(c: Coin) -> void:
-		landed_box["count"] += 1
-		landed_box["pos"] = c.position)
-	coin.begin_slide(Vector3(-9.4, 1.28, -2.0), 1.0, 14.0)
+	var origin: Vector3 = MachineLayout.side_chute_origin(MachineLayout.Chute.LEFT)
+	var vel: Vector3 = MachineLayout.side_chute_velocity(MachineLayout.Chute.LEFT, 22.0, 20.0)
+	check(origin.x < -8.0 and origin.y > MachineLayout.PUSHER_HEIGHT, "left chute origin is at the left wall above the pusher top")
+	check(vel.x > 0.0 and vel.y < 0.0 and is_zero_approx(vel.z), "left chute velocity points inward and downward")
+	var rvel: Vector3 = MachineLayout.side_chute_velocity(MachineLayout.Chute.RIGHT, 22.0, 20.0)
+	check(rvel.x < 0.0, "right chute velocity points left")
+	check(is_equal_approx(MachineLayout.top_chute_origin(99.0).x, MachineLayout.TOP_AIM_MAX_X), "top chute aim is clamped")
+	coin.launch(origin, Basis(Vector3.FORWARD, deg_to_rad(90.0)), vel, Vector3(0, 0, -44.0))
 	await physics_frame
-	check(coin.is_airborne and coin.collision_layer == 0 and coin.collision_mask == 0, "sliding coin does not collide")
-	check(coin.freeze, "sliding coin is frozen (kinematic)")
-	check(coin.position.is_equal_approx(Vector3(-9.4, 1.28, -2.0)), "sliding coin stays put until Machine moves it")
-	var nxt: Vector3 = coin.slide_next(0.1)
-	check(is_equal_approx(nxt.x, -8.0) and is_equal_approx(nxt.z, -2.0), "slide_next advances 1.4 units right per 0.1s at 14/s")
-	coin.begin_slide(Vector3(9.4, 1.28, -2.0), -1.0, 14.0)
-	nxt = coin.slide_next(0.1)
-	check(is_equal_approx(nxt.x, 8.0), "slide_next goes left for right chute")
-	coin.land_at(Vector3(0, 1.28, -2.0), Vector3(2, 0, 1))
-	await physics_frame
-	check(not coin.is_airborne and not coin.freeze and coin.collision_layer == 1, "landed coin is physical")
-	check(landed_box["count"] == 1 and (landed_box["pos"] as Vector3).is_equal_approx(Vector3(0, 1.28, -2.0)), "landed emitted once at landing position")
+	check(coin.is_airborne and coin.collision_layer == 1 and not coin.freeze, "launched coin is airborne but a real physics body")
+	check(coin.linear_velocity.x > 10.0, "launch velocity applied")
+	for _i in range(6):
+		await physics_frame
+	check(coin.position.x > origin.x + 1.0, "coin flies inward after launch (x=%.2f)" % coin.position.x)
+	for _i in range(200):
+		coin.tick_airborne(1.0 / 60.0)
+		await physics_frame
+	check(not coin.is_airborne, "coin stops being airborne after it slows or 3s pass")
 	coin.queue_free()
 	await physics_frame
 
