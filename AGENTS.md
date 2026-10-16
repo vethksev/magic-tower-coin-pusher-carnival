@@ -39,7 +39,18 @@ $Root  = 'D:/magic-tower-coin-pusher-carnival'
 
 ## 進度
 
-### 2026-10-16
+### 2026-10-16 Phase 0 機台手感 demo ✅（分支 feat/phase0-machine）
 
-- 開 repo、寫設計規格 v1（Phase 0 + 1）、`CONTRIBUTING.md`、`docs/ART_GUIDE.md`。等 owner 審閱 spec，之後 Claude 出 implementation plan 並開始 Phase 0。
-- 未做：任何程式、任何素材。
+- 完成：`game/machine/`（MachineLayout／MachineTuning／Coin／Pusher／Machine）、`game/demo/phase0_demo.gd`、五個測試腳本、`tools/build.ps1`、`tools/install_export_templates.ps1`、`export_presets.cfg`。EXE `windows-v0.1.0/MagicTowerCoinPusher.exe`（110 MB），ZIP `D:\MagicTowerCoinPusher-Windows-v0.1.0.zip`。
+- 驗證：machine_layout 27／coin_pusher 26／machine_sim 13／smoke 10 checks 全過；`tests/demo_capture.gd` 截圖 `.godot/qa/phase0.png` 目視正常；EXE 開 4 秒無 crash。
+- 操作：A／D／Space 發幣，R 補幣，N 新 seed，`[ ]` 推板週期、`; '` 行程、`- =` 摩擦、`, .` 滑速，F1 收起 HUD。
+- **實作同 spec 第 1 節嘅差異（已反映入 spec）**：
+  1. 床幣用六角密鋪（中心距 14.2、行距 12.3、約 410 枚），後台行鋪到牆邊、前台行只鋪到邊坑線。稀疏方格床會吸收晒推力，零跌落。
+  2. 發幣改為 RACCOIN 式「橫向滑行直至撞幣／撞牆先落地」，滑行中 y 貼住推板前沿；唔係固定 0.3 秒飛行。
+  3. 邊坑只喺最前 50 像素（y 230–280），唔係成個前台；否則流失比跌落仲多。
+  4. 靜止判定改為「彈匣空後連續 2 個推板週期無幣跌落／流失」，唔用速度閾值（等待行每週期都被推板推動，永遠唔會速度為零）。
+  5. 唔用 CCD（`continuous_cd`）：400 枚相貼幣開 CCD 會爆炸飛走。
+- 已知待調：幾百枚幣受壓時左右牆有 ~7px 穿透（solver_iterations 已加到 32 仍有）；20 枚約跌 18–25、流失 2–3，比例由 owner 試完再定。
+- 掃參數用 `tests/tuning_sweep.gd`（`--fixed-fps 60` 一秒跑 20 秒模擬），例：`--bed-spacing=14.2 --stroke=36 --fire=40 --ticks=1800`。
+- Godot 物理跨 run 唔逐位元確定（同 seed 跌落數 ±1），測試只要求 ±3；床幣初始位置同 seed 完全可重現。
+- 下一步：owner 試手感 → 寫入 `machine_tuning.tres` → Phase 1 plan（魔塔數值、幣效果、商店、UI 流程）。
