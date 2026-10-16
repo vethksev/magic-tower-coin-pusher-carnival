@@ -1,6 +1,6 @@
 class_name Machine
-extends Node2D
-## 推幣機台：牆、推板、床幣、發幣（橫滑直至被阻）、分區判定、靜止判定。
+extends Node3D
+## 3D 推幣機台：下層平台、側牆、固定刮板、推板、床幣、發幣（橫滑直至被阻）、分區判定、靜止判定。
 ## 只發信號，唔識魔塔數值。上層（rules）聽信號。
 
 signal coin_scored(coin: Coin)
@@ -9,8 +9,8 @@ signal pusher_cycle(index: int)
 signal settled()
 signal clip_changed(remaining: int)
 
-const COPPER_COLOR: Color = Color(0.80, 0.50, 0.20)
-const HEX_ROW_FACTOR: float = 0.8660254   # sqrt(3)/2
+const COPPER_COLOR: Color = Color(0.85, 0.58, 0.22)
+const HEX_ROW_FACTOR: float = 0.8660254
 
 @export var tuning: MachineTuning
 
@@ -24,23 +24,23 @@ var scored_value: int = 0
 var _coins: Array[Coin] = []
 var _next_uid: int = 1
 var _cooldown: Array[float] = [0.0, 0.0]
-var _last_event_cycle: int = 0      # 最後一次有幣跌落／流失／發幣時嘅推板週期
+var _last_event_cycle: int = 0
 var _settled_emitted: bool = false
 var _pusher: Pusher
-var _coins_root: Node2D
+var _coins_root: Node3D
 var _ready_done: bool = false
 
 
 func _ready() -> void:
 	if tuning == null:
 		tuning = load("res://game/machine/machine_tuning.tres")
-	_build_walls()
+	_build_static()
 	_pusher = Pusher.new()
 	_pusher.name = "Pusher"
 	add_child(_pusher)
 	_pusher.configure(tuning)
 	_pusher.cycle_completed.connect(func(i: int) -> void: pusher_cycle.emit(i))
-	_coins_root = Node2D.new()
+	_coins_root = Node3D.new()
 	_coins_root.name = "Coins"
 	add_child(_coins_root)
 	_ready_done = true
@@ -85,11 +85,15 @@ func is_settled() -> bool:
 	return _settled_emitted
 
 
+func pusher_front_z() -> float:
+	return _pusher.front_z()
+
+
 ## 床幣初始位置（純由 seed 同 tuning 決定，唔經物理），畀測試驗證 RNG 可重現。
-func bed_layout() -> Array[Vector2]:
+func bed_layout() -> Array[Vector3]:
 	var saved_state: int = rng.state
 	rng.seed = seed_value
-	var out: Array[Vector2] = []
+	var out: Array[Vector3] = []
 	for p in _bed_positions():
 		out.append(p)
 	rng.state = saved_state
@@ -97,20 +101,19 @@ func bed_layout() -> Array[Vector2]:
 
 
 ## side: 0 左槽、1 右槽。回傳 true 代表真係發咗一枚。
-## 幣由槽口沿推板前條帶橫向滑行，撞到幣或對面牆先落地（RACCOIN 式）。
+## 幣由推板頂面嘅左／右邊緣橫向滑行，撞到幣或對面牆先落地。
 func fire(side: int) -> bool:
 	if clip <= 0 or _cooldown[side] > 0.0:
 		return false
 	var dir_x: float = 1.0 if side == 0 else -1.0
 	var r: float = tuning.coin_radius
-	# 條帶 y：推板當刻前沿 + 半徑 + 2；最少喺槽口高度、最多唔超過床幣後排（避免一出就撞床）
-	var y: float = _pusher.front_y() + r + 2.0 + rng.randf_range(-tuning.fire_jitter, tuning.fire_jitter)
-	y = clampf(y, MachineLayout.CHUTE_LEFT.y, tuning.bed_start_y - 2.0 * r)
-	var x: float = (r + 1.0) if side == 0 else (MachineLayout.WIDTH - r - 1.0)
+	var x: float = -(MachineLayout.HALF_WIDTH - r - 0.1) if side == 0 else (MachineLayout.HALF_WIDTH - r - 0.1)
+	var y: float = _pusher.top_y() + tuning.coin_thickness / 2.0 + 0.02
+	var z: float = MachineLayout.CHUTE_Z + rng.randf_range(-tuning.fire_jitter, tuning.fire_jitter)
 	var coin: Coin = _make_coin(1, COPPER_COLOR)
 	coin.land_scale = rng.randf_range(0.8, 1.2)
-	coin.begin_slide(Vector2(x, y), dir_x, tuning.fire_speed)
 	_coins_root.add_child(coin)
+	coin.begin_slide(Vector3(x, y, z), dir_x, tuning.fire_speed)
 	_coins.append(coin)
 	clip -= 1
 	_cooldown[side] = tuning.fire_cooldown
@@ -126,7 +129,7 @@ func set_pusher_period(p: float) -> void:
 
 func apply_tuning_to_coins() -> void:
 	for coin in _coins:
-		coin.apply_damp(tuning.linear_damp)
+		coin.apply_friction(tuning.friction)
 
 
 func _make_coin(value: int, color: Color) -> Coin:
@@ -136,32 +139,37 @@ func _make_coin(value: int, color: Color) -> Coin:
 	return coin
 
 
-## 六角密鋪：列以 x=200 對稱，奇數行偏移半格；行距 spacing × 0.866。
-func _bed_positions() -> Array[Vector2]:
-	var out: Array[Vector2] = []
+## 六角密鋪一層喺下層平台：z 由推板最前位置 + gap 到 bed_z_end；邊坑段（z > GUTTER_START_Z）收窄。
+func _bed_positions() -> Array[Vector3]:
+	var out: Array[Vector3] = []
 	var s: float = tuning.bed_spacing
 	var row_pitch: float = s * HEX_ROW_FACTOR
-	var centre: float = MachineLayout.WIDTH / 2.0
-	# 前台（有邊坑）行只鋪到 bed_x_start..bed_x_end；後台行鋪到牆邊，唔留橫向空隙吸收推力
-	var front_half_span: float = minf(centre - tuning.bed_x_start, tuning.bed_x_end - centre)
-	var back_half_span: float = centre - tuning.coin_radius - 1.0
-	var y: float = tuning.bed_start_y
+	var y: float = tuning.coin_thickness / 2.0 + 0.01
+	var z: float = MachineLayout.PUSHER_REST_FRONT_Z + tuning.pusher_stroke + tuning.bed_z_gap
 	var row: int = 0
-	while y <= tuning.bed_end_y + 0.001:
-		var half_span: float = back_half_span if y < MachineLayout.GUTTER_START_Y else front_half_span
+	while z <= tuning.bed_z_end + 0.001:
+		var half_span: float = tuning.bed_x_half
+		if z > MachineLayout.GUTTER_START_Z:
+			half_span = minf(half_span, MachineLayout.GUTTER_HALF_WIDTH - tuning.coin_radius - 0.1)
 		var offset: float = 0.0 if row % 2 == 0 else s / 2.0
 		var k: int = 0
 		while true:
 			var dx: float = offset + k * s
 			if dx > half_span:
 				break
-			var jitter_a: Vector2 = Vector2(rng.randf_range(-tuning.bed_jitter, tuning.bed_jitter), rng.randf_range(-tuning.bed_jitter, tuning.bed_jitter))
-			out.append(Vector2(centre + dx, y) + jitter_a)
+			var ja: Vector3 = Vector3(rng.randf_range(-tuning.bed_jitter, tuning.bed_jitter), 0.0, rng.randf_range(-tuning.bed_jitter, tuning.bed_jitter))
+			out.append(Vector3(dx, y, z) + ja)
 			if dx > 0.0001:
-				var jitter_b: Vector2 = Vector2(rng.randf_range(-tuning.bed_jitter, tuning.bed_jitter), rng.randf_range(-tuning.bed_jitter, tuning.bed_jitter))
-				out.append(Vector2(centre - dx, y) + jitter_b)
+				var jb: Vector3 = Vector3(rng.randf_range(-tuning.bed_jitter, tuning.bed_jitter), 0.0, rng.randf_range(-tuning.bed_jitter, tuning.bed_jitter))
+				out.append(Vector3(-dx, y, z) + jb)
+			# 前段第二層：疊喺兩枚之間（x 偏半格），高一層幣厚
+			if z >= tuning.bed_layer2_from_z and dx + s / 2.0 <= half_span:
+				var y2: float = y + tuning.coin_thickness + 0.02
+				out.append(Vector3(dx + s / 2.0, y2, z))
+				if dx > 0.0001:
+					out.append(Vector3(-(dx + s / 2.0), y2, z))
 			k += 1
-		y += row_pitch
+		z += row_pitch
 		row += 1
 	return out
 
@@ -174,37 +182,78 @@ func _spawn_bed() -> void:
 		_coins.append(coin)
 
 
-func _build_walls() -> void:
-	var walls: StaticBody2D = StaticBody2D.new()
-	walls.name = "Walls"
-	walls.collision_layer = 1
-	walls.collision_mask = 1
-	add_child(walls)
-	_add_box(walls, Rect2(-40.0, -40.0, 40.0, MachineLayout.HEIGHT + 80.0))            # 左牆（厚，防穿）
-	_add_box(walls, Rect2(MachineLayout.WIDTH, -40.0, 40.0, MachineLayout.HEIGHT + 80.0))  # 右牆
-	_add_box(walls, Rect2(0.0, -24.0, MachineLayout.WIDTH, 40.0))                      # 後牆（推板後面）
+func _build_static() -> void:
+	var body: StaticBody3D = StaticBody3D.new()
+	body.name = "Static"
+	body.collision_layer = 1
+	body.collision_mask = 1
+	add_child(body)
+	var hw: float = MachineLayout.HALF_WIDTH
+	var back: float = MachineLayout.PLATFORM_BACK_Z
+	var front: float = MachineLayout.FRONT_EDGE_Z
+	var gz: float = MachineLayout.GUTTER_START_Z
+	var ghw: float = MachineLayout.GUTTER_HALF_WIDTH
+	var floor_col: Color = Color(0.20, 0.19, 0.26)
+	var wall_col: Color = Color(0.42, 0.28, 0.16)
+	var wiper_col: Color = Color(0.16, 0.14, 0.20)
+	# 下層平台：後段全闊，前段（邊坑段）收窄
+	_add_box(body, Vector3(0.0, -0.5, (back + gz) / 2.0), Vector3(hw * 2.0, 1.0, gz - back), floor_col)
+	_add_box(body, Vector3(0.0, -0.5, (gz + front) / 2.0), Vector3(ghw * 2.0, 1.0, front - gz), floor_col)
+	# 側牆（全長，高 4）
+	_add_box(body, Vector3(-hw - 0.5, 2.0, (back + front) / 2.0), Vector3(1.0, 5.0, front - back), wall_col)
+	_add_box(body, Vector3(hw + 0.5, 2.0, (back + front) / 2.0), Vector3(1.0, 5.0, front - back), wall_col)
+	# 後牆
+	_add_box(body, Vector3(0.0, 2.0, back - 0.5), Vector3(hw * 2.0 + 2.0, 5.0, 1.0), wall_col)
+	# 固定刮板：推板頂面之上，由後牆到 WIPER_FRONT_Z
+	var wz: float = MachineLayout.WIPER_FRONT_Z
+	_add_box(body, Vector3(0.0, MachineLayout.PUSHER_HEIGHT + 1.45, (back + wz) / 2.0), Vector3(hw * 2.0, 2.8, wz - back), wiper_col)
+	# 塔門視覺（前緣下面一塊金色板，無碰撞）
+	var tray: MeshInstance3D = MeshInstance3D.new()
+	var tray_mesh: BoxMesh = BoxMesh.new()
+	tray_mesh.size = Vector3(hw * 2.0 + 2.0, 0.4, 3.0)
+	tray.mesh = tray_mesh
+	tray.position = Vector3(0.0, -2.6, front + 1.6)
+	var tray_mat: StandardMaterial3D = StandardMaterial3D.new()
+	tray_mat.albedo_color = Color(0.72, 0.55, 0.16)
+	tray.material_override = tray_mat
+	add_child(tray)
 
 
-func _add_box(body: StaticBody2D, rect: Rect2) -> void:
-	var shape: RectangleShape2D = RectangleShape2D.new()
-	shape.size = rect.size
-	var cs: CollisionShape2D = CollisionShape2D.new()
+func _add_box(body: StaticBody3D, centre: Vector3, size: Vector3, color: Color) -> void:
+	var shape: BoxShape3D = BoxShape3D.new()
+	shape.size = size
+	var cs: CollisionShape3D = CollisionShape3D.new()
 	cs.shape = shape
-	cs.position = rect.position + rect.size / 2.0
+	cs.position = centre
 	body.add_child(cs)
+	var mi: MeshInstance3D = MeshInstance3D.new()
+	var mesh: BoxMesh = BoxMesh.new()
+	mesh.size = size
+	mi.mesh = mesh
+	mi.position = centre
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = 0.9
+	mi.material_override = mat
+	body.add_child(mi)
 
 
-## 滑行中嘅幣：下一位置會撞到任何已落地幣、或撞到對面牆，就喺現位落地。
-func _is_blocked(pos: Vector2, self_coin: Coin) -> bool:
+## 滑行中嘅幣：下一位置會撞到同一高度嘅已落地幣、或撞到對面牆，就喺現位落地。
+func _is_blocked(pos: Vector3, self_coin: Coin) -> bool:
 	var r: float = tuning.coin_radius
-	if pos.x < r + 1.0 or pos.x > MachineLayout.WIDTH - r - 1.0:
+	if absf(pos.x) > MachineLayout.HALF_WIDTH - r - 0.1:
 		return true
-	var min_dist: float = 2.0 * r + 0.5
+	var min_dist: float = 2.0 * r + 0.05
 	var min_dist_sq: float = min_dist * min_dist
 	for other in _coins:
 		if other == self_coin or other.is_airborne:
 			continue
-		if other.position.distance_squared_to(pos) < min_dist_sq:
+		var op: Vector3 = other.position
+		if absf(op.y - pos.y) > 0.6:
+			continue
+		var dx: float = op.x - pos.x
+		var dz: float = op.z - pos.z
+		if dx * dx + dz * dz < min_dist_sq:
 			return true
 	return false
 
@@ -221,11 +270,9 @@ func _physics_process(delta: float) -> void:
 		var coin: Coin = _coins[i]
 		if coin.is_airborne:
 			any_airborne = true
-			var next_pos: Vector2 = coin.slide_next(delta)
-			# 滑行中貼住推板前沿，避免推板前進時將幣包入身體、落地被彈到推板後面
-			next_pos.y = maxf(next_pos.y, _pusher.front_y() + tuning.coin_radius + 2.0)
+			var next_pos: Vector3 = coin.slide_next(delta)
 			if _is_blocked(next_pos, coin):
-				coin.land_at(coin.position, Vector2(coin.slide_dir * tuning.fire_speed * 0.2, tuning.fire_forward_speed) * coin.land_scale)
+				coin.land_at(coin.position, Vector3(coin.slide_dir * tuning.fire_speed * 0.15, 0.0, tuning.fire_forward_speed) * coin.land_scale)
 			else:
 				coin.position = next_pos
 			i -= 1
@@ -245,27 +292,7 @@ func _physics_process(delta: float) -> void:
 			coin_lost.emit(coin, 0 if zone == MachineLayout.Zone.LOST_LEFT else 1)
 			coin.queue_free()
 		i -= 1
-	# 靜止 = 彈匣空、無幣滑行中、而且連續 settle_cycles 個推板週期無任何幣跌落／流失
-	if clip == 0 and not any_airborne and not _settled_emitted 			and _pusher.cycles_completed - _last_event_cycle >= tuning.settle_cycles:
+	if clip == 0 and not any_airborne and not _settled_emitted \
+			and _pusher.cycles_completed - _last_event_cycle >= tuning.settle_cycles:
 		_settled_emitted = true
 		settled.emit()
-
-
-func _draw() -> void:
-	var w: float = MachineLayout.WIDTH
-	var h: float = MachineLayout.HEIGHT
-	# 枱面：後台深、前台淺
-	draw_rect(Rect2(0, 0, w, h), Color(0.16, 0.14, 0.20))
-	draw_rect(Rect2(0, MachineLayout.FRONT_START_Y, w, MachineLayout.DROP_Y - MachineLayout.FRONT_START_Y), Color(0.22, 0.20, 0.26))
-	# 邊坑（只喺最前段）
-	var gutter_h: float = MachineLayout.DROP_Y - MachineLayout.GUTTER_START_Y
-	draw_rect(Rect2(0, MachineLayout.GUTTER_START_Y, MachineLayout.GUTTER_W, gutter_h), Color(0.05, 0.04, 0.07))
-	draw_rect(Rect2(w - MachineLayout.GUTTER_W, MachineLayout.GUTTER_START_Y, MachineLayout.GUTTER_W, gutter_h), Color(0.05, 0.04, 0.07))
-	# 塔門（跌落帶）
-	draw_rect(Rect2(0, MachineLayout.DROP_Y, w, h - MachineLayout.DROP_Y), Color(0.55, 0.42, 0.12))
-	draw_line(Vector2(0, MachineLayout.DROP_Y), Vector2(w, MachineLayout.DROP_Y), Color(0.95, 0.80, 0.30), 1.0)
-	# 槽口
-	draw_rect(Rect2(MachineLayout.CHUTE_LEFT - Vector2(10, 8), Vector2(20, 16)), Color(0.50, 0.50, 0.58))
-	draw_rect(Rect2(MachineLayout.CHUTE_RIGHT - Vector2(10, 8), Vector2(20, 16)), Color(0.50, 0.50, 0.58))
-	# 外框
-	draw_rect(Rect2(-2, -2, w + 4, h + 4), Color(0.45, 0.30, 0.15), false, 2.0)

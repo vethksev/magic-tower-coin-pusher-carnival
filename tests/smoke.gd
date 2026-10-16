@@ -17,13 +17,14 @@ func run() -> void:
 	await physics_frame
 	var machine: Machine = main.get_node_or_null("Machine")
 	check(machine != null, "main scene has a Machine child named Machine")
-	var hud: Label = main.get_node_or_null("Hud")
+	var hud: Label = main.find_child("Hud", true, false)
 	check(hud != null and hud.text.length() > 0, "HUD label exists and has text")
+	check(main.find_child("Camera", true, false) is Camera3D, "scene has a Camera3D")
 	if machine == null:
 		finish()
 		return
 	var bed: int = machine.coins_on_board()
-	check(bed > 300, "bed coins spawned (got %d)" % bed)
+	check(bed > 80, "bed coins spawned (got %d)" % bed)
 	check(machine.clip == 20, "clip starts at 20")
 	main.call("demo_fire", 0)
 	await physics_frame
@@ -33,9 +34,9 @@ func run() -> void:
 	check(machine.tuning.pusher_period > 2.4, "period adjust up works")
 	main.call("demo_adjust", "period", -1)
 	check(is_equal_approx(machine.tuning.pusher_period, 2.4), "period adjust down restores")
-	main.call("demo_adjust", "damp", 1)
-	check(is_equal_approx(machine.tuning.linear_damp, 3.5), "damp adjust +0.5")
-	main.call("demo_adjust", "damp", -1)
+	main.call("demo_adjust", "friction", 1)
+	check(is_equal_approx(machine.tuning.friction, 0.25), "friction adjust +0.05")
+	main.call("demo_adjust", "friction", -1)
 	check(hud.text.find("彈匣") >= 0, "HUD shows clip label in Chinese")
 	finish()
 
