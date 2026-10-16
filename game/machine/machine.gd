@@ -222,6 +222,8 @@ func _physics_process(delta: float) -> void:
 		if coin.is_airborne:
 			any_airborne = true
 			var next_pos: Vector2 = coin.slide_next(delta)
+			# 滑行中貼住推板前沿，避免推板前進時將幣包入身體、落地被彈到推板後面
+			next_pos.y = maxf(next_pos.y, _pusher.front_y() + tuning.coin_radius + 2.0)
 			if _is_blocked(next_pos, coin):
 				coin.land_at(coin.position, Vector2(coin.slide_dir * tuning.fire_speed * 0.2, tuning.fire_forward_speed) * coin.land_scale)
 			else:
