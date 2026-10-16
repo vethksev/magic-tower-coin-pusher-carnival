@@ -39,7 +39,18 @@ $Root  = 'D:/magic-tower-coin-pusher-carnival'
 
 ## 進度
 
-### 2026-10-16 Phase 0 機台手感 demo ✅（分支 feat/phase0-machine）
+### 2026-10-16 Phase 0b 3D 機台手感 demo ✅（分支 feat/phase0b-machine3d，v0.2.0）
+
+- Owner 試完 2D 頂視版：「2D 體驗感極差，推幣機 3D，魔塔部分 2D」。即日改做真 3D（Godot 3D + Jolt），`game/machine/` 五檔原地換成 3D 版，對外信號不變。
+- 結構：下層平台、側牆、後牆、固定刮板（前面 z=−3）、推板（20×1.2×8，行程 6）、床幣六角密鋪＋前段（z≥2.5）第二層、發幣喺推板頂面橫滑直至被阻。詳見 spec 1.6。
+- Demo：Node3D + Camera3D (0,28,23)→(0,0,−1) fov 30 h_offset 5、DirectionalLight、WorldEnvironment、CanvasLayer HUD；鍵位同 Phase 0（`- =` 改為調摩擦）。
+- 驗證：machine_layout 27／coin_pusher 27／machine_sim 14／smoke 11 全過；`.godot/qa/phase0.png` 見整部機；EXE `windows-v0.2.0/MagicTowerCoinPusher.exe`、ZIP `D:\MagicTowerCoinPusher-Windows-v0.2.0.zip`。
+- 實測教訓：行程 4 ＋摩擦 0.35 ＋一層床 → 零跌落（幣寧願爬上鄰幣都唔推前排）；要行程 6、摩擦 0.2、前段兩層、前排貼前緣先有 20 枚跌 3–13。邊坑段由 z=3 起會流失 > 跌落，縮到 z>5。刮板前面同推板後退位齊會令頂面幣卡喺邊緣，前移 1 單位解決。
+- Jolt 跨 run 唔確定：同 seed 跌落數可以 13 vs 1，測試只驗「有跌落」；平衡要用多 run 平均。
+- 偶發：一枚幣卡喺推板頂面近牆位（seed 8），未修。
+- 下一步：owner 試 3D 手感 → 定數值 → Phase 1 plan。
+
+### 2026-10-16 Phase 0 2D 機台手感 demo（已棄用，分支 feat/phase0-machine，v0.1.0）
 
 - 完成：`game/machine/`（MachineLayout／MachineTuning／Coin／Pusher／Machine）、`game/demo/phase0_demo.gd`、五個測試腳本、`tools/build.ps1`、`tools/install_export_templates.ps1`、`export_presets.cfg`。EXE `windows-v0.1.0/MagicTowerCoinPusher.exe`（110 MB），ZIP `D:\MagicTowerCoinPusher-Windows-v0.1.0.zip`。
 - 驗證：machine_layout 27／coin_pusher 26／machine_sim 13／smoke 10 checks 全過；`tests/demo_capture.gd` 截圖 `.godot/qa/phase0.png` 目視正常；EXE 開 4 秒無 crash。

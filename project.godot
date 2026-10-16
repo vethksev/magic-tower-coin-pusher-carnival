@@ -23,11 +23,9 @@ window/stretch/scale_mode="integer"
 
 [physics]
 
-2d/default_gravity=0.0
-2d/default_linear_damp=0.0
-2d/default_angular_damp=0.0
 common/physics_ticks_per_second=60
-2d/solver/solver_iterations=32
+3d/physics_engine="Jolt Physics"
+3d/default_gravity=400.0
 
 [rendering]
 

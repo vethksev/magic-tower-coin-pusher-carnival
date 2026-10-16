@@ -1,10 +1,9 @@
-extends Node2D
-## Phase 0 手感 demo 控制器：鍵盤發幣、HUD 統計、即場調參。
+extends Node3D
+## Phase 0b 3D 手感 demo 控制器：鍵盤發幣、2D HUD 疊層、即場調參。
 ## 唔係正式遊戲流程；Phase 1 會換成 run 場景。
 
 const TUNING_PATH: String = "res://game/machine/machine_tuning.tres"
 const FONT_PATH: String = "res://assets/fonts/fusion-pixel-12px-zh-hant.otf"
-const MACHINE_ORIGIN: Vector2 = Vector2(20, 30)
 
 var machine: Machine
 var hud: Label
@@ -20,19 +19,9 @@ func _ready() -> void:
 	machine = Machine.new()
 	machine.name = "Machine"
 	machine.tuning = tuning
-	machine.position = MACHINE_ORIGIN
 	add_child(machine)
-	hud = Label.new()
-	hud.name = "Hud"
-	hud.position = Vector2(440, 24)
-	hud.size = Vector2(190, 320)
-	hud.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var font: Font = load(FONT_PATH)
-	if font != null:
-		hud.add_theme_font_override("font", font)
-	hud.add_theme_font_size_override("font_size", 12)
-	hud.add_theme_color_override("font_color", Color(0.92, 0.88, 0.78))
-	add_child(hud)
+	_build_camera_and_lights()
+	_build_hud()
 	machine.coin_scored.connect(func(_c: Coin) -> void: _refresh())
 	machine.coin_lost.connect(func(_c: Coin, _s: int) -> void: _refresh())
 	machine.clip_changed.connect(func(_n: int) -> void:
@@ -45,6 +34,49 @@ func _ready() -> void:
 	_refresh()
 
 
+func _build_camera_and_lights() -> void:
+	var cam: Camera3D = Camera3D.new()
+	cam.name = "Camera"
+	cam.position = Vector3(0.0, 28.0, 23.0)
+	cam.fov = 30.0
+	cam.h_offset = 5.0      # 機台靠左，右邊留位畀 2D HUD
+	add_child(cam)
+	cam.look_at(Vector3(0.0, 0.0, -1.0), Vector3.UP)
+	cam.current = true
+	var sun: DirectionalLight3D = DirectionalLight3D.new()
+	sun.name = "Sun"
+	sun.rotation_degrees = Vector3(-55.0, 25.0, 0.0)
+	sun.light_energy = 1.1
+	add_child(sun)
+	var env_node: WorldEnvironment = WorldEnvironment.new()
+	env_node.name = "Env"
+	var env: Environment = Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.07, 0.06, 0.09)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.55, 0.52, 0.60)
+	env.ambient_light_energy = 0.9
+	env_node.environment = env
+	add_child(env_node)
+
+
+func _build_hud() -> void:
+	var layer: CanvasLayer = CanvasLayer.new()
+	layer.name = "HudLayer"
+	add_child(layer)
+	hud = Label.new()
+	hud.name = "Hud"
+	hud.position = Vector2(440, 24)
+	hud.size = Vector2(190, 320)
+	hud.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var font: Font = load(FONT_PATH)
+	if font != null:
+		hud.add_theme_font_override("font", font)
+	hud.add_theme_font_size_override("font_size", 12)
+	hud.add_theme_color_override("font_color", Color(0.92, 0.88, 0.78))
+	layer.add_child(hud)
+
+
 func _setup_input() -> void:
 	_bind("fire_left", KEY_A)
 	_bind("fire_right", KEY_D)
@@ -54,8 +86,8 @@ func _setup_input() -> void:
 	_bind("toggle_hud", KEY_F1)
 	_bind("period_down", KEY_BRACKETLEFT)
 	_bind("period_up", KEY_BRACKETRIGHT)
-	_bind("damp_down", KEY_MINUS)
-	_bind("damp_up", KEY_EQUAL)
+	_bind("friction_down", KEY_MINUS)
+	_bind("friction_up", KEY_EQUAL)
 	_bind("speed_down", KEY_COMMA)
 	_bind("speed_up", KEY_PERIOD)
 	_bind("stroke_down", KEY_SEMICOLON)
@@ -97,10 +129,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		demo_adjust("period", -1)
 	elif event.is_action("period_up"):
 		demo_adjust("period", 1)
-	elif event.is_action("damp_down"):
-		demo_adjust("damp", -1)
-	elif event.is_action("damp_up"):
-		demo_adjust("damp", 1)
+	elif event.is_action("friction_down"):
+		demo_adjust("friction", -1)
+	elif event.is_action("friction_up"):
+		demo_adjust("friction", 1)
 	elif event.is_action("speed_down"):
 		demo_adjust("speed", -1)
 	elif event.is_action("speed_up"):
@@ -119,19 +151,19 @@ func demo_fire(side: int) -> bool:
 	return machine.fire(side)
 
 
-## what: "period" | "damp" | "speed" | "stroke"；direction: +1 / -1
+## what: "period" | "friction" | "speed" | "stroke"；direction: +1 / -1
 func demo_adjust(what: String, direction: int) -> void:
 	var d: float = float(signi(direction))
 	match what:
 		"period":
 			machine.set_pusher_period(clampf(tuning.pusher_period + 0.2 * d, 0.6, 6.0))
-		"damp":
-			tuning.linear_damp = clampf(tuning.linear_damp + 0.5 * d, 0.0, 12.0)
+		"friction":
+			tuning.friction = clampf(tuning.friction + 0.05 * d, 0.0, 1.5)
 			machine.apply_tuning_to_coins()
 		"speed":
-			tuning.fire_speed = clampf(tuning.fire_speed + 20.0 * d, 40.0, 600.0)
+			tuning.fire_speed = clampf(tuning.fire_speed + 2.0 * d, 2.0, 40.0)
 		"stroke":
-			tuning.pusher_stroke = clampf(tuning.pusher_stroke + 4.0 * d, 8.0, 100.0)
+			tuning.pusher_stroke = clampf(tuning.pusher_stroke + 0.5 * d, 1.0, 7.0)
 	_refresh()
 
 
@@ -139,14 +171,14 @@ func _refresh() -> void:
 	if hud == null or machine == null:
 		return
 	var lines: PackedStringArray = PackedStringArray([
-		"魔塔推幣機 · Phase 0 手感 demo",
+		"魔塔推幣機 · 3D 手感 demo",
 		"",
 		"彈匣 %d   跌落 %d   流失 %d" % [machine.clip, machine.scored_count, machine.lost_count],
 		"枱上 %d   seed %d   狀態 %s" % [machine.coins_on_board(), machine.seed_value, _status],
 		"",
 		"推板週期 [ ]  %.1f 秒" % tuning.pusher_period,
-		"推板行程 ; '  %.0f 像素" % tuning.pusher_stroke,
-		"枱面摩擦 - =  %.1f" % tuning.linear_damp,
+		"推板行程 ; '  %.1f 幣" % tuning.pusher_stroke,
+		"幣摩擦 - =  %.2f" % tuning.friction,
 		"發幣滑速 , .  %.0f" % tuning.fire_speed,
 		"",
 		"A 左發   D 右發   Space 雙發",

@@ -1,6 +1,7 @@
 class_name Pusher
-extends AnimatableBody2D
-## 正弦來回推板。position 每個 physics tick 由 step() 設定；sync_to_physics 令佔真正推動幣。
+extends AnimatableBody3D
+## 正弦來回推板（長方體）。position 每個 physics tick 由 step() 設定；sync_to_physics 令佔真正推動幣。
+## 頂面係「上層架」，發出嘅幣先落喺頂面，推板後退時被固定刮板掃落下層平台。
 
 signal cycle_completed(index: int)
 
@@ -8,28 +9,37 @@ var tuning: MachineTuning
 var time: float = 0.0
 var cycles_completed: int = 0
 
-var _shape: RectangleShape2D
+var _shape: BoxShape3D
+var _mesh: MeshInstance3D
 
 
 func _init() -> void:
 	sync_to_physics = true
 	collision_layer = 1
 	collision_mask = 1
-	_shape = RectangleShape2D.new()
-	_shape.size = Vector2(MachineLayout.WIDTH, 24.0)
-	var cs: CollisionShape2D = CollisionShape2D.new()
+	_shape = BoxShape3D.new()
+	_shape.size = Vector3(MachineLayout.HALF_WIDTH * 2.0, MachineLayout.PUSHER_HEIGHT, MachineLayout.PUSHER_DEPTH)
+	var cs: CollisionShape3D = CollisionShape3D.new()
 	cs.name = "Shape"
 	cs.shape = _shape
 	add_child(cs)
+	_mesh = MeshInstance3D.new()
+	_mesh.name = "Mesh"
+	var box: BoxMesh = BoxMesh.new()
+	box.size = _shape.size
+	_mesh.mesh = box
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.40, 0.36, 0.48)
+	mat.roughness = 0.8
+	_mesh.material_override = mat
+	add_child(_mesh)
 
 
 func configure(t: MachineTuning) -> void:
 	tuning = t
-	_shape.size = Vector2(MachineLayout.WIDTH, t.pusher_thickness)
 	time = 0.0
 	cycles_completed = 0
 	_apply()
-	queue_redraw()
 
 
 func step(delta: float) -> void:
@@ -42,13 +52,17 @@ func step(delta: float) -> void:
 		cycle_completed.emit(after)
 
 
-func front_y() -> float:
-	return MachineLayout.pusher_front_y(time, tuning.pusher_period, tuning.pusher_stroke, tuning.pusher_rest_y)
+## 前面 z（向 +z 推出）。
+func front_z() -> float:
+	return MachineLayout.pusher_front_z(time, tuning.pusher_period, tuning.pusher_stroke, MachineLayout.PUSHER_REST_FRONT_Z)
 
 
-## 預測 seconds_ahead 秒後嘅前沿 y（發幣落點用）。
-func front_y_after(seconds_ahead: float) -> float:
-	return MachineLayout.pusher_front_y(time + seconds_ahead, tuning.pusher_period, tuning.pusher_stroke, tuning.pusher_rest_y)
+func front_z_after(seconds_ahead: float) -> float:
+	return MachineLayout.pusher_front_z(time + seconds_ahead, tuning.pusher_period, tuning.pusher_stroke, MachineLayout.PUSHER_REST_FRONT_Z)
+
+
+func top_y() -> float:
+	return MachineLayout.PUSHER_HEIGHT
 
 
 func set_period_keep_phase(new_period: float) -> void:
@@ -60,12 +74,4 @@ func set_period_keep_phase(new_period: float) -> void:
 
 
 func _apply() -> void:
-	position = Vector2(MachineLayout.WIDTH / 2.0, front_y() - tuning.pusher_thickness / 2.0)
-
-
-func _draw() -> void:
-	var half: float = (tuning.pusher_thickness if tuning else 24.0) / 2.0
-	var w: float = MachineLayout.WIDTH
-	draw_rect(Rect2(-w / 2.0, -half, w, half * 2.0), Color(0.36, 0.33, 0.42))
-	draw_rect(Rect2(-w / 2.0, half - 3.0, w, 3.0), Color(0.78, 0.70, 0.52))
-	draw_rect(Rect2(-w / 2.0, -half, w, 2.0), Color(0.22, 0.20, 0.27))
+	position = Vector3(0.0, MachineLayout.PUSHER_HEIGHT / 2.0, front_z() - MachineLayout.PUSHER_DEPTH / 2.0)
