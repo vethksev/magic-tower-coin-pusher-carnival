@@ -26,10 +26,16 @@ func run() -> void:
 	var bed: int = machine.coins_on_board()
 	check(bed > 80, "bed coins spawned (got %d)" % bed)
 	check(machine.clip == 20, "clip starts at 20")
-	main.call("demo_fire", 0)
+	main.call("demo_fire", MachineLayout.Chute.LEFT)
 	await physics_frame
-	check(machine.clip == 19, "demo_fire(0) fires one coin")
+	check(machine.clip == 19, "demo_fire(left) fires one coin")
 	check(machine.coins_on_board() == bed + 1, "fired coin is on board")
+	main.call("demo_fire", MachineLayout.Chute.TOP)
+	await physics_frame
+	check(machine.clip == 18, "demo_fire(top) fires one coin")
+	machine.set_aim_x(3.0)
+	check(is_equal_approx(machine.aim_x, 3.0), "aim_x set")
+	check(machine.find_child("AimMarker", true, false) != null, "aim marker exists")
 	main.call("demo_adjust", "period", 1)
 	check(machine.tuning.pusher_period > 2.4, "period adjust up works")
 	main.call("demo_adjust", "period", -1)
@@ -37,6 +43,9 @@ func run() -> void:
 	main.call("demo_adjust", "friction", 1)
 	check(is_equal_approx(machine.tuning.friction, 0.25), "friction adjust +0.05")
 	main.call("demo_adjust", "friction", -1)
+	main.call("demo_adjust", "bounce", 1)
+	check(is_equal_approx(machine.tuning.bounce, 0.3), "bounce adjust +0.05")
+	main.call("demo_adjust", "bounce", -1)
 	check(hud.text.find("彈匣") >= 0, "HUD shows clip label in Chinese")
 	finish()
 

@@ -8,19 +8,31 @@ extends Resource
 
 @export_group("Coin physics")
 @export var friction: float = 0.2
-@export var bounce: float = 0.05
+## 彈性：落地會彈開（0 = 唔彈）
+@export var bounce: float = 0.25
 @export var coin_radius: float = 0.5
 @export var coin_thickness: float = 0.12
 @export var coin_mass: float = 1.0
 
 @export_group("Firing")
-## 幣沿推板頂面橫向滑行嘅速度（單位／秒），撞到幣或對面牆先落地
-@export var fire_speed: float = 14.0
-## 落地後保留嘅向前速度
-@export var fire_forward_speed: float = 1.0
+## 側槽初速（單位／秒）
+@export var fire_speed: float = 22.0
+## 側槽射出角度（度，向下為正）
+@export var fire_angle_deg: float = 20.0
+## 上方槽落下初速（向下）
+@export var top_drop_speed: float = 3.0
+## 上方槽少量向前初速
+@export var top_forward_speed: float = 1.5
+## 幣射出時嘅傾角範圍（度）：0 = 平放，90 = 企直滾動；每枚隨機
+@export var fire_tilt_min_deg: float = 55.0
+@export var fire_tilt_max_deg: float = 90.0
+## 自轉角速度（弧度／秒）隨機上限
+@export var fire_spin: float = 12.0
+## 初速隨機倍率範圍
+@export var fire_speed_jitter: float = 0.12
+## 水平偏航隨機（度）
+@export var fire_yaw_jitter_deg: float = 6.0
 @export var fire_cooldown: float = 0.25
-## 落點 z 隨機抖動
-@export var fire_jitter: float = 0.3
 @export var clip_size: int = 20
 
 @export_group("Settle")

@@ -9,10 +9,10 @@
 
 圖片、音效、字體行 Git LFS。唔提交 `.godot/`、EXE／ZIP。
 
-## Phase 0b 3D 手感 demo（v0.2.0）
+## Phase 0c 3D 手感 demo（v0.3.0）
 
-解壓 ZIP 開 `MagicTowerCoinPusher.exe`。A／D 左右發幣、Space 雙發、R 補 20 幣、N 新 seed。
-`[` `]` 調推板週期、`;` `'` 調行程、`-` `=` 調幣摩擦、`,` `.` 調發幣滑速，F1 收起面板。
+解壓 ZIP 開 `MagicTowerCoinPusher.exe`。A／D 左右槽、Space 雙槽、W 或滑鼠左鍵上方落幣（滑鼠移動／←→ 瞄準）、R 補 20 幣、N 新 seed。
+`[` `]` 推板週期、`;` `'` 行程、`-` `=` 摩擦、`9` `0` 彈性、`,` `.` 側槽初速，F1 收起面板。
 試完請話我知邊組數字手感最好。
 
-打包：`powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Version 0.2.0`（第一次先跑 `tools\install_export_templates.ps1`）。
+打包：`powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Version 0.3.0`（第一次先跑 `tools\install_export_templates.ps1`）。

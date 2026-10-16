@@ -39,6 +39,13 @@ $Root  = 'D:/magic-tower-coin-pusher-carnival'
 
 ## 進度
 
+### 2026-10-16 Phase 0c 真物理發幣 ✅（分支 feat/phase0c-physical-chutes，v0.3.0）
+
+- Owner 試完 v0.2.0：「好過之前，但最好模擬真實，彈開，左右分開出幣，可上面出幣，要有物理角度」。
+- 改動：取消凍結橫滑；幣一出槽即真剛體。左／右槽由側牆上方以 22 單位／秒向下 20° 射入，幣企直帶滾動自轉；新增上方槽（W／滑鼠左鍵），滑鼠移動／←→ 瞄準落點（黃色標記）；彈性 0.25（`9`/`0` 鍵調）；飛出機外當流失。`MachineLayout.Chute` enum（LEFT/RIGHT/TOP），`Machine.fire(chute)`、`set_aim_x()`。
+- 驗證：machine_layout 30／coin_pusher 29／machine_sim 17／smoke 15 全過；sweep：側槽 20 枚跌 15–19 流失 3–7，上方槽 20 枚跌 26 流失 4；截圖見側槽同瞄準標記；EXE `windows-v0.3.0`。
+- 仍有：偶發 1–2 枚幣停喺推板頂面近牆位。
+
 ### 2026-10-16 Phase 0b 3D 機台手感 demo ✅（分支 feat/phase0b-machine3d，v0.2.0）
 
 - Owner 試完 2D 頂視版：「2D 體驗感極差，推幣機 3D，魔塔部分 2D」。即日改做真 3D（Godot 3D + Jolt），`game/machine/` 五檔原地換成 3D 版，對外信號不變。
