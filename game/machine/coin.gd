@@ -32,6 +32,9 @@ func _init() -> void:
 	_material.roughness = 0.55
 	_material.metallic = 0.25
 	can_sleep = true
+	# 重力 400、槽口高 3.6：落地時每 tick 行 0.5–0.9 單位，厚 0.12 嘅幣會插穿厚 1 嘅地板／推板。
+	# Jolt 嘅 continuous_cd = LinearCast，睇住整段位移，唔會穿。
+	continuous_cd = true
 	contact_monitor = false
 	collision_layer = 1
 	collision_mask = 1

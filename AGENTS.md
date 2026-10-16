@@ -39,6 +39,15 @@ $Root  = 'D:/magic-tower-coin-pusher-carnival'
 
 ## 進度
 
+### 2026-10-17 Phase 0d 幣消失修正 ✅（分支 feat/phase0d-no-tunneling，v0.4.0）
+
+- Owner 試 v0.3.0：「好好多，偶然仲有推幣嘅時候消失咗」。
+- 根因（`tests/vanish_probe.gd` 逐 tick 追蹤每枚幣）：消失位置全部喺推板前方 z≈−1、|x|<7，最後速度向下 30–55 單位／秒 ＝ 幣跌穿地板。重力 400、槽口高 3.6，落地每 tick 行 0.5–0.9 單位，厚 0.12 嘅幣一 tick 插入厚 1 嘅地板過半，Jolt 由底面推出 → y<−1 → 判流失刪除。每 40 枚有 1–5 枚。推板頂面（厚 1.2）都有同樣穿入。
+- 第二個 bug：reset 時推板由原點「掃」去後退位（`AnimatableBody3D` sync_to_physics 任何設 position 都當有速度移動），前排床幣被撞到 45 單位／秒飛起（max y 3.07），落地再跌穿。
+- 修：`Coin` 開 `continuous_cd`（Jolt LinearCast）；`Pusher.configure()` 入 tree 前先 `_apply()`，已入 tree 就 remove→apply→add 做真瞬移；`Machine.reset()` 舊幣即時 remove_child（唔等 queue_free）。
+- 驗證：machine_sim 新增 3 項（流失時仍在平台範圍＝跌穿 → 必須 0；reset 後 6 tick 床幣 max y < 0.5；雙 reset 無彈飛）—修前 12 枚跌穿／max y 3.07，修後 0。四組測試 30／29／21／15 全綠。probe 6 seed × 2 槽 × 40 枚：消失 0、穿透 0；側槽跌 26–33、上方槽 27–38，**流失全部 0**（之前嘅流失其實係跌穿）。sim 5 組共 8 秒，CCD 無明顯慢。
+- 影響：邊坑而家冇作用，Phase 1 要重新設計風險（加闊邊坑／提前起點）。`tests/vanish_probe.gd` 留作診斷工具（`--seed --mode --fire --ticks`）。
+
 ### 2026-10-16 Phase 0c 真物理發幣 ✅（分支 feat/phase0c-physical-chutes，v0.3.0）
 
 - Owner 試完 v0.2.0：「好過之前，但最好模擬真實，彈開，左右分開出幣，可上面出幣，要有物理角度」。
