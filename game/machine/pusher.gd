@@ -35,11 +35,19 @@ func _init() -> void:
 	add_child(_mesh)
 
 
+## 設定參數並瞬移返後退位。sync_to_physics 嘅 AnimatableBody3D 任何 position 改動都當係「有速度移動」，
+## 會掃飛路徑上嘅幣（第一次由原點去後退位會撞飛前排床幣），所以入咗 tree 就先離開再加入，令佢係真瞬移。
 func configure(t: MachineTuning) -> void:
 	tuning = t
 	time = 0.0
 	cycles_completed = 0
-	_apply()
+	var parent: Node = get_parent()
+	if parent != null and is_inside_tree():
+		parent.remove_child(self)
+		_apply()
+		parent.add_child(self)
+	else:
+		_apply()
 
 
 func step(delta: float) -> void:

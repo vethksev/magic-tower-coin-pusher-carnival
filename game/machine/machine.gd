@@ -41,8 +41,8 @@ func _ready() -> void:
 	_build_chute_visuals()
 	_pusher = Pusher.new()
 	_pusher.name = "Pusher"
+	_pusher.configure(tuning)   # 入 tree 前先放好位置，物理體一出世就喺後退位
 	add_child(_pusher)
-	_pusher.configure(tuning)
 	_pusher.cycle_completed.connect(func(i: int) -> void: pusher_cycle.emit(i))
 	_coins_root = Node3D.new()
 	_coins_root.name = "Coins"
@@ -54,7 +54,10 @@ func _ready() -> void:
 func reset(new_seed: int) -> void:
 	seed_value = new_seed
 	rng.seed = new_seed
+	# 舊幣要即時離開物理世界：queue_free 要等到 frame 尾，新舊床幣會重疊一個 physics step 然後炸飛
 	for coin in _coins:
+		if coin.get_parent() != null:
+			coin.get_parent().remove_child(coin)
 		coin.queue_free()
 	_coins.clear()
 	_next_uid = 1
