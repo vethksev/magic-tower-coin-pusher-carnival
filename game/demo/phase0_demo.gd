@@ -222,7 +222,7 @@ func _refresh() -> void:
 		"",
 		"推板週期 [ ]  %.1f 秒" % tuning.pusher_period,
 		"推板行程 ; '  %.1f 幣" % tuning.pusher_stroke,
-		"幣摩擦 - =  %.2f   彈性 9 0  %.2f" % [tuning.friction, tuning.bounce],
+		"摩擦 - =  %.2f  彈性 9 0  %.2f" % [tuning.friction, tuning.bounce],
 		"側槽初速 , .  %.0f" % tuning.fire_speed,
 		"",
 		"A 左槽  D 右槽  Space 雙槽",
