@@ -1,6 +1,7 @@
 class_name Coin
 extends RigidBody2D
-## 一枚幣。發出時先「飛行」（無碰撞、凍結、沿直線移動），落地先變真物理體。
+## 一枚幣。發出時先「滑行」（無碰撞、凍結、沿推板前嘅條帶橫向移動），被阻先落地變真物理體。
+## 滑行期間嘅阻擋判定由 Machine 做（佈知道所有幣喺邊）；Coin 只負責狀態切換同繪圖。
 ## 唔識魔塔數值；value 只係一個數字畀上層用。
 
 signal landed(coin: Coin)
@@ -10,13 +11,11 @@ var radius: float = 7.0
 var uid: int = 0
 var color: Color = Color(0.80, 0.50, 0.20)
 var is_airborne: bool = false
+var slide_dir: float = 1.0      # +1 向右、-1 向左
+var slide_speed: float = 0.0
+var land_scale: float = 1.0     # 落地速度隨機倍率（Machine 用 seed 設定）
 
 var _shape: CircleShape2D
-var _flight_from: Vector2
-var _flight_to: Vector2
-var _flight_time: float = 0.0
-var _flight_elapsed: float = 0.0
-var _landing_velocity: Vector2 = Vector2.ZERO
 
 
 func _init() -> void:
@@ -64,15 +63,13 @@ func place(at: Vector2) -> void:
 	collision_mask = 1
 	position = at
 	linear_velocity = Vector2.ZERO
+	queue_redraw()
 
 
-## 由槽口飛去落點，flight_time 秒後落地變物理體並帶 landing_velocity。
-func launch(from: Vector2, to: Vector2, flight_time: float, landing_velocity: Vector2) -> void:
-	_flight_from = from
-	_flight_to = to
-	_flight_time = maxf(flight_time, 0.0001)
-	_flight_elapsed = 0.0
-	_landing_velocity = landing_velocity
+## 由槽口開始橫向滑行；Machine 每 tick 叫 slide_step()，被阻時叫 land_at()。
+func begin_slide(from: Vector2, dir_x: float, speed: float) -> void:
+	slide_dir = signf(dir_x) if dir_x != 0.0 else 1.0
+	slide_speed = speed
 	is_airborne = true
 	freeze_mode = RigidBody2D.FREEZE_MODE_KINEMATIC
 	freeze = true
@@ -83,29 +80,24 @@ func launch(from: Vector2, to: Vector2, flight_time: float, landing_velocity: Ve
 	queue_redraw()
 
 
-func _physics_process(delta: float) -> void:
-	if not is_airborne:
-		return
-	_flight_elapsed += delta
-	var t: float = clampf(_flight_elapsed / _flight_time, 0.0, 1.0)
-	position = _flight_from.lerp(_flight_to, t)
-	if t >= 1.0:
-		_land()
+## 回傳下一 tick 嘅位置（唔改 position；由 Machine 決定接受定落地）。
+func slide_next(delta: float) -> Vector2:
+	return position + Vector2(slide_dir * slide_speed * delta, 0.0)
 
 
-func _land() -> void:
+func land_at(at: Vector2, landing_velocity: Vector2) -> void:
 	is_airborne = false
-	position = _flight_to
+	position = at
 	collision_layer = 1
 	collision_mask = 1
 	freeze = false
-	linear_velocity = _landing_velocity
+	linear_velocity = landing_velocity
 	queue_redraw()
 	landed.emit(self)
 
 
 func _draw() -> void:
-	var scale_up: float = 1.25 if is_airborne else 1.0
+	var scale_up: float = 1.2 if is_airborne else 1.0
 	var r: float = radius * scale_up
 	draw_circle(Vector2.ZERO, r, color)
 	draw_arc(Vector2.ZERO, r - 1.0, 0.0, TAU, 24, color.darkened(0.35), 1.0)

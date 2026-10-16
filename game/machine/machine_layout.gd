@@ -6,9 +6,10 @@ extends RefCounted
 const WIDTH: float = 400.0
 const HEIGHT: float = 300.0
 const BEZEL_Y: float = 40.0          # 推板完全收回時嘅前沿 y
-const FRONT_START_Y: float = 150.0   # 後台結束、前台（有邊坑）開始
+const FRONT_START_Y: float = 150.0   # 後台結束、前台開始（視覺分界）
+const GUTTER_START_Y: float = 230.0  # 邊坑只喺最前 50 像素（230–280）
 const DROP_Y: float = 280.0          # 前緣：幣中心過呢條線即跌入塔門
-const GUTTER_W: float = 18.0         # 前台左右邊坑闊度
+const GUTTER_W: float = 18.0         # 左右邊坑闊度
 const CHUTE_LEFT: Vector2 = Vector2(30.0, 48.0)
 const CHUTE_RIGHT: Vector2 = Vector2(370.0, 48.0)
 
@@ -25,7 +26,7 @@ static func pusher_front_y(time: float, period: float, stroke: float, rest_y: fl
 static func classify(pos: Vector2) -> Zone:
 	if pos.y >= DROP_Y:
 		return Zone.SCORED
-	if pos.y >= FRONT_START_Y:
+	if pos.y >= GUTTER_START_Y:
 		if pos.x < GUTTER_W:
 			return Zone.LOST_LEFT
 		if pos.x > WIDTH - GUTTER_W:

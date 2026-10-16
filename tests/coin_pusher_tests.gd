@@ -11,7 +11,7 @@ func _initialize() -> void:
 func run() -> void:
 	var tuning: MachineTuning = load("res://game/machine/machine_tuning.tres")
 	await test_coin_setup(tuning)
-	await test_coin_flight(tuning)
+	await test_coin_slide(tuning)
 	await test_pusher(tuning)
 	print("CoinPusher: %d checks, %d failures" % [checks, failures])
 	quit(0 if failures == 0 else 1)
@@ -40,11 +40,13 @@ func test_coin_setup(tuning: MachineTuning) -> void:
 	coin.place(Vector2(100, 100))
 	await physics_frame
 	check(not coin.is_airborne and coin.collision_layer == 1 and coin.collision_mask == 1, "placed coin is solid")
+	coin.apply_damp(5.0)
+	check(is_equal_approx(coin.linear_damp, 5.0) and is_equal_approx(coin.angular_damp, 5.0), "apply_damp updates both damps")
 	coin.queue_free()
 	await physics_frame
 
 
-func test_coin_flight(tuning: MachineTuning) -> void:
+func test_coin_slide(tuning: MachineTuning) -> void:
 	var coin: Coin = Coin.new()
 	coin.setup(tuning, 1, 1, Color.WHITE)
 	root.add_child(coin)
@@ -52,19 +54,20 @@ func test_coin_flight(tuning: MachineTuning) -> void:
 	coin.landed.connect(func(c: Coin) -> void:
 		landed_box["count"] += 1
 		landed_box["pos"] = c.position)
-	coin.launch(Vector2(30, 48), Vector2(90, 70), 0.3, Vector2(60, 20))
+	coin.begin_slide(Vector2(8, 60), 1.0, 300.0)
 	await physics_frame
-	check(coin.is_airborne and coin.collision_layer == 0 and coin.collision_mask == 0, "airborne coin does not collide")
-	check(coin.freeze, "airborne coin is frozen (kinematic)")
-	for _i in range(8):
-		await physics_frame
-	check(coin.position.x > 30.0 and coin.position.x < 90.0, "coin moves along flight path")
-	for _i in range(16):
-		await physics_frame
-	check(not coin.is_airborne, "coin lands after flight time")
-	check((landed_box["pos"] as Vector2).distance_to(Vector2(90, 70)) < 0.5, "coin lands at target")
-	check(landed_box["count"] == 1, "landed emitted exactly once")
-	check(not coin.freeze and coin.collision_layer == 1, "landed coin is physical")
+	check(coin.is_airborne and coin.collision_layer == 0 and coin.collision_mask == 0, "sliding coin does not collide")
+	check(coin.freeze, "sliding coin is frozen (kinematic)")
+	check(coin.position == Vector2(8, 60), "sliding coin stays put until Machine moves it")
+	var nxt: Vector2 = coin.slide_next(1.0 / 60.0)
+	check(is_equal_approx(nxt.x, 13.0) and is_equal_approx(nxt.y, 60.0), "slide_next advances 5px right per tick at 300px/s")
+	coin.begin_slide(Vector2(392, 60), -1.0, 300.0)
+	nxt = coin.slide_next(1.0 / 60.0)
+	check(is_equal_approx(nxt.x, 387.0), "slide_next goes left for right chute")
+	coin.land_at(Vector2(100, 60), Vector2(60, 30))
+	await physics_frame
+	check(not coin.is_airborne and not coin.freeze and coin.collision_layer == 1, "landed coin is physical")
+	check(landed_box["count"] == 1 and (landed_box["pos"] as Vector2) == Vector2(100, 60), "landed emitted once at landing position")
 	check(coin.linear_velocity.length() > 10.0, "landing velocity applied")
 	coin.queue_free()
 	await physics_frame
@@ -86,6 +89,7 @@ func test_pusher(tuning: MachineTuning) -> void:
 	for _i in range(72):
 		pusher.step(dt)
 	check(absf(pusher.front_y() - (tuning.pusher_rest_y + tuning.pusher_stroke)) < 1.5, "after half period pusher is near full extension")
+	check(absf(pusher.front_y_after(1.2) - tuning.pusher_rest_y) < 1.5, "front_y_after predicts rest half a period later")
 	for _i in range(73):
 		pusher.step(dt)
 	check(cycles_box["count"] == 1 and cycles_box["last"] == 1, "one cycle completed after full period")

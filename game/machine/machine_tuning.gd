@@ -15,21 +15,25 @@ extends Resource
 @export var coin_radius: float = 7.0
 
 @export_group("Firing")
-@export var fire_speed: float = 180.0
-@export var fire_forward_speed: float = 40.0
-@export var fire_jitter_deg: float = 6.0
+## 幣沿推板前條帶橫向滑行嘅速度（像素／秒），撞到幣或對面牆先落地
+@export var fire_speed: float = 300.0
+## 落地後保留嘅向前速度
+@export var fire_forward_speed: float = 30.0
 @export var fire_cooldown: float = 0.25
-@export var fire_flight_time: float = 0.3
+## 落點 y 隨機抖動（像素），令每局唔同
+@export var fire_jitter: float = 2.0
 @export var clip_size: int = 20
 
 @export_group("Settle")
-@export var settle_speed: float = 4.0
-@export var settle_seconds: float = 2.0
+## 彈匣空後，連續幾多個推板週期無幣跌落／流失就算靜止（停滯）
+@export var settle_cycles: int = 2
 
 @export_group("Bed")
-@export var bed_start_y: float = 90.0
-@export var bed_end_y: float = 270.0
-@export var bed_spacing: float = 17.0
-@export var bed_x_start: float = 30.0
-@export var bed_x_end: float = 370.0
-@export var bed_jitter: float = 1.0
+## 六角密鋪：相鄰幣中心距；行距 = spacing × 0.866
+@export var bed_spacing: float = 14.2
+## 第一行 y；行距 12.3 × 15 行 → 最後一行 273，邊緣剛貼跌落線 280
+@export var bed_start_y: float = 88.5
+@export var bed_end_y: float = 274.0
+@export var bed_x_start: float = 25.0
+@export var bed_x_end: float = 375.0
+@export var bed_jitter: float = 0.0

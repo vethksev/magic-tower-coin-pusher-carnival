@@ -27,6 +27,7 @@ window/stretch/scale_mode="integer"
 2d/default_linear_damp=0.0
 2d/default_angular_damp=0.0
 common/physics_ticks_per_second=60
+2d/solver/solver_iterations=32
 
 [rendering]
 
